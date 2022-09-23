@@ -56,20 +56,32 @@ def calc_vort(u: xr.DataArray, v: xr.DataArray):
 # data_750 = xr.open_dataset('/home/users/xinkai/MIT/12.843/Data/750hPa.nc')
 
 DATASET_PATH = [
+  'C:\\Users\\xinle\\Downloads\\ERA5\\350hPa.nc',
+  'C:\\Users\\xinle\\Downloads\\ERA5\\400hPa.nc',
   'C:\\Users\\xinle\\Downloads\\ERA5\\450hPa.nc',
-  'C:\\Users\\xinle\\Downloads\\ERA5\\650hPa.nc',
+  'C:\\Users\\xinle\\Downloads\\ERA5\\500hPa.nc',
   'C:\\Users\\xinle\\Downloads\\ERA5\\550hPa.nc',
-  'C:\\Users\\xinle\\Downloads\\ERA5\\750hPa.nc'
+  'C:\\Users\\xinle\\Downloads\\ERA5\\600hPa.nc',
+  'C:\\Users\\xinle\\Downloads\\ERA5\\650hPa.nc',
+  'C:\\Users\\xinle\\Downloads\\ERA5\\700hPa.nc',
+  'C:\\Users\\xinle\\Downloads\\ERA5\\750hPa.nc',
+  'C:\\Users\\xinle\\Downloads\\ERA5\\800hPa.nc',
+  'C:\\Users\\xinle\\Downloads\\ERA5\\850hPa.nc',
+  'C:\\Users\\xinle\\Downloads\\ERA5\\875hPa.nc',
+  'C:\\Users\\xinle\\Downloads\\ERA5\\900hPa.nc',
+  'C:\\Users\\xinle\\Downloads\\ERA5\\925hPa.nc',
 ]
 
-lat_slice = ()
+levels = [350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 875, 900, 925]
 
-data_450 = xr.open_dataset('C:\\Users\\xinle\\Downloads\\ERA5\\450hPa.nc')
-data_550 = xr.open_dataset('C:\\Users\\xinle\\Downloads\\ERA5\\650hPa.nc')
-data_650 = xr.open_dataset('C:\\Users\\xinle\\Downloads\\ERA5\\550hPa.nc')
-data_750 = xr.open_dataset('C:\\Users\\xinle\\Downloads\\ERA5\\750hPa.nc')
+lat_slice = slice(35,0)
+lon_slice = slice(210, 300)
+time_slice = slice(16, None)
 
-
+# data_450 = xr.open_dataset('C:\\Users\\xinle\\Downloads\\ERA5\\450hPa.nc')
+# data_550 = xr.open_dataset('C:\\Users\\xinle\\Downloads\\ERA5\\650hPa.nc')
+# data_650 = xr.open_dataset('C:\\Users\\xinle\\Downloads\\ERA5\\550hPa.nc')
+# data_750 = xr.open_dataset('C:\\Users\\xinle\\Downloads\\ERA5\\750hPa.nc')
 
 # data_650 = xr.open_dataset('/content/drive/MyDrive/12.843/650hPa.nc', decode_times=True)
 # data_750 = xr.open_dataset('/content/drive/MyDrive/12.843/750hPa.nc', decode_times=True)
@@ -79,24 +91,21 @@ data_750 = xr.open_dataset('C:\\Users\\xinle\\Downloads\\ERA5\\750hPa.nc')
 # data_550 = xr.open_dataset('https://engaging-web.mit.edu/~xinkai/12.843/ERA5/550hPa.nc#mode=bytes')
 # data_650 = xr.open_dataset('https://engaging-web.mit.edu/~xinkai/12.843/ERA5/450hPa.nc#mode=bytes')
 
-for key in list(data_450.data_vars):
-    data_450[key] = data_450[key].expand_dims(level=[450], axis=1)
+ds = []
 
-for key in list(data_550.data_vars):
-    data_550[key] = data_550[key].expand_dims(level=[550], axis=1)
+for i, file in enumerate(DATASET_PATH):
 
-for key in list(data_650.data_vars):
-    data_650[key] = data_650[key].expand_dims(level=[650], axis=1)
+	data = xr.open_dataset(file).sel(latitude=lat_slice).sel(longitude=lon_slice).expand_dims(level=[levels[i]], axis=1)
 
-for key in list(data_750.data_vars):
-    data_750[key] = data_750[key].expand_dims(level=[750], axis=1)
+	time_offset = np.datetime64(int(data.coords["time"].values[0]), "h") - np.datetime64("2017-07-20T00", "h")
+	data.coords["time"] = np.array([np.datetime64(int(time), 'h') - time_offset for time in data.coords["time"].values])
 
-data = xr.concat([data_450, data_550, data_650, data_750], dim="level")
-data.coords["time"].values
-# np.array(data.coords["time"].values, dtype='datetime64') - np.timedelta64(70, "Y")
+	data = data.isel(time=time_slice)
 
-time_offset = np.datetime64(int(data.coords["time"].values[0]), "h") - np.datetime64("2017-07-20T00", "h")
-data.coords["time"] = np.array([np.datetime64(int(time), 'h') - time_offset for time in data.coords["time"].values])
+	ds.append(data)
 
-del data_450, data_550, data_650, data_750
+	del data
+
+ds = xr.concat(ds, dim="level")
+
 #%%
