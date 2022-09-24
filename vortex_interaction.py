@@ -316,3 +316,85 @@ plt.xlabel(r"$\log$(Distance from Hurricane Center / m)")
 plt.ylabel(r"$\log$(Wind speed / m s$^{-1}$)")
 plt.show()
 #%%
+def distance_to_latlon(initial_lon, initial_lat, displacement):
+  final_lat = initial_lat + displacement[1] * 360 / (2 * np.pi * RE)
+  final_lon = initial_lon + displacement[0] * 360 / (2 * np.pi * RE * np.cos(math.radians(initial_lat)))
+  return final_lon, final_lat
+
+def perpendicular(a):
+  b = np.empty_like(a)
+  b[0] = -a[1]
+  b[1] = a[0]
+  return b / np.linalg.norm(a)
+
+def point_vortex_interaction(zeta_1, zeta_2, lon_1, lat_1, lon_2, lat_2, nsteps, dt=600):
+  lon_1s = np.zeros(nsteps + 1)
+  lat_1s = np.zeros(nsteps + 1)
+  lon_2s = np.zeros(nsteps + 1)
+  lat_2s = np.zeros(nsteps + 1)
+
+  lon_1s[0] = lon_1
+  lat_1s[0] = lat_1
+  lon_2s[0] = lon_2
+  lat_2s[0] = lat_2
+
+  for i in range(nsteps):
+    lat_1_rad = np.radians(lat_1)
+    lon_1_rad = np.radians(lon_1)
+    lat_2_rad = np.radians(lat_2)
+    lon_2_rad = np.radians(lon_2)
+
+    dlon_rad = lon_2_rad - lon_1_rad
+    dlat_rad = lat_2_rad - lat_1_rad
+
+    dx_1_to_2 = RE * np.cos(lon_1_rad) * dlon_rad
+    dy_1_to_2 = RE * dlat_rad
+
+    r_1_to_2 = np.array([dx_1_to_2, dy_1_to_2])
+    r_2_to_1 = - 1 * r_1_to_2
+
+    distance = np.linalg.norm(r_1_to_2)
+
+    u_1_on_2 = perpendicular(r_1_to_2) * zeta_1  / ( 2 * np.pi * distance)
+    u_2_on_1 = perpendicular(r_2_to_1) * zeta_2  / ( 2 * np.pi * distance)
+
+    lon_2, lat_2 = distance_to_latlon(lon_2, lat_2, u_1_on_2 * dt)
+    lon_1, lat_1 = distance_to_latlon(lon_1, lat_1, u_2_on_1 * dt)
+
+    lon_1s[i+1] = lon_1
+    lat_1s[i+1] = lat_1
+    lon_2s[i+1] = lon_2
+    lat_2s[i+1] = lat_2
+
+  return lon_1s, lat_1s, lon_2s, lat_2s
+
+#%%
+levels_used = levels[7:]
+
+zeta_1s = np.zeros(len(ds["time"]))
+for i, time in enumerate(ds["time"]):
+  zeta_1s[i] = np.mean(ds["vorticity"].sel(level=levels_used, latitude=tc1_lat[i], longitude=tc1_lon[i], time=time)).values
+
+zeta_2s = np.zeros(len(ds["time"]))
+for i, time in enumerate(ds["time"]):
+  zeta_2s[i] = np.mean(ds["vorticity"].sel(level=levels_used, latitude=tc2_lat[i], longitude=tc2_lon[i], time=time)).values
+
+plt.plot(ds["time"], zeta_1s)
+plt.ylabel("Vorticity of TC1")
+plt.show()
+
+plt.plot(ds["time"], zeta_2s, label="Vorticity of TC2")
+plt.ylabel("Vorticity of TC2")
+plt.show()
+#%%
+zeta_1_time_average = np.mean(zeta_1s) * 10e11
+zeta_2_time_average = np.mean(zeta_2s) * 10e11
+
+vortex_1_lons, vortex_1_lats, vortex_2_lons, vortex_2_lats = point_vortex_interaction(zeta_1_time_average, zeta_2_time_average, tc1_lon[0], tc1_lat[0], tc2_lon[0], tc2_lat[0], 100, dt=3600)
+
+plt.style.use('default')
+
+plt.scatter(vortex_1_lons, vortex_1_lats)
+plt.scatter(vortex_2_lons, vortex_2_lats)
+plt.show()
+#%%
