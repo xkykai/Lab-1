@@ -5,6 +5,8 @@ import netCDF4 as nc
 import matplotlib.pyplot as plt
 # import numdifftools as nd
 import math
+from scipy.optimize import curve_fit
+import seaborn as sns
 
 # global variable
 RE = 6371.0e3  # Earth's radius
@@ -49,6 +51,23 @@ def pzpy(z: xr.DataArray):
 
 def calc_vort(u: xr.DataArray, v: xr.DataArray):
   return pzpx(v) - pzpy(u)
+
+def earth_distance(lat_1, lon_1, lat_2, lon_2):
+  # approximate radius of earth in m
+  lat1 = np.radians(lat_1)
+  lon1 = np.radians(lon_1)
+  lat2 = np.radians(lat_2)
+  lon2 = np.radians(lon_2)
+
+  dlon = lon2 - lon1
+  dlat = lat2 - lat1
+
+  a = np.sin(dlat / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2) ** 2
+  c = 2 * math.atan2(np.sqrt(a), np.sqrt(1 - a))
+
+  distance = RE * c
+
+  return distance
 #%%
 # data_450 = xr.open_dataset('/home/users/xinkai/MIT/12.843/Data/450hPa.nc')
 # data_550 = xr.open_dataset('/home/users/xinkai/MIT/12.843/Data/550hPa.nc')
@@ -108,4 +127,192 @@ for i, file in enumerate(DATASET_PATH):
 
 ds = xr.concat(ds, dim="level")
 
+#%%
+ds["vorticity"] = calc_vort(ds["u"], ds["v"])
+ds["speed"] = np.sqrt(ds["u"] ** 2 + ds["v"] ** 2)
+#%%
+timestep = 27
+pressure_level = 925
+
+plt.figure()
+ds["u"].isel(time=timestep).sel(level=pressure_level).plot.contourf(x="longitude")
+plt.show()
+
+plt.figure()
+ds["v"].isel(time=timestep).sel(level=pressure_level).plot.contourf(x="longitude")
+plt.show()
+
+plt.figure()
+ds["speed"].isel(time=timestep).sel(level=pressure_level).plot.contourf(x="longitude")
+plt.show()
+
+plt.figure()
+ds["vorticity"].isel(time=timestep).sel(level=pressure_level).plot.contourf(x="longitude")
+plt.show()
+#%%
+def find_local_max_ind(arr: xr.DataArray):
+  field = arr.values
+  lat_size = arr.coords['latitude'].size
+  lon_size = arr.coords['longitude'].size
+  mask = np.zeros((lat_size, lon_size))
+  for ilat in range(2, lat_size-2):
+    for ilon in range(2, lon_size-2):
+      if field[ilat, ilon] == np.max(field[ilat-2:ilat+3, ilon-2:ilon+3]):
+        mask[ilat, ilon] = 1
+  max_ind = np.where(field*mask>0.0002)
+  max_ind1 = 0
+  max_ind2 = 1
+  if len(max_ind[0])>2:
+    vort_list = [field[max_ind[0][i], max_ind[1][i]] for i in range(len(max_ind[0]))]
+    max_ind1 = vort_list.index(max(vort_list))
+    vort_list[max_ind1] = 0
+    max_ind2 = vort_list.index(max(vort_list))
+  tc1_lat = arr.coords['latitude'][max_ind[0][max_ind1]].values
+  tc1_lon = arr.coords['longitude'][max_ind[1][max_ind1]].values
+  tc2_lat = arr.coords['latitude'][max_ind[0][max_ind2]].values
+  tc2_lon = arr.coords['longitude'][max_ind[1][max_ind2]].values
+  return tc1_lat, tc1_lon, tc2_lat, tc2_lon
+
+pressure_level = 925 # locate the TCs at 925hPa
+tc1_lat = np.zeros(ds["time"].size)
+tc1_lon = np.zeros(ds["time"].size)
+tc2_lat = np.zeros(ds["time"].size)
+tc2_lon = np.zeros(ds["time"].size)
+for nt in range(ds["time"].size):
+  local_vort = ds["vorticity"].isel(time=nt).sel(level=pressure_level, latitude=slice(19+10*nt/32., 8+8*nt/32.), longitude=slice(240-20*nt/32., 260-20*nt/32.))
+  tc1_lat_tmp, tc1_lon_tmp, tc2_lat_tmp, tc2_lon_tmp = find_local_max_ind(local_vort)
+  if nt==0:
+    tc1_lat[nt] = tc1_lat_tmp
+    tc1_lon[nt] = tc1_lon_tmp
+    tc2_lat[nt] = tc2_lat_tmp
+    tc2_lon[nt] = tc2_lon_tmp
+  else:
+    d1 = earth_distance(tc1_lat[nt-1], tc1_lon[nt-1], tc1_lat_tmp, tc1_lon_tmp)
+    d2 = earth_distance(tc1_lat[nt-1], tc1_lon[nt-1], tc2_lat_tmp, tc2_lon_tmp)
+    if d1 < d2:
+      tc1_lat[nt] = tc1_lat_tmp
+      tc1_lon[nt] = tc1_lon_tmp
+      tc2_lat[nt] = tc2_lat_tmp
+      tc2_lon[nt] = tc2_lon_tmp
+    else:
+      tc1_lat[nt] = tc2_lat_tmp
+      tc1_lon[nt] = tc2_lon_tmp
+      tc2_lat[nt] = tc1_lat_tmp
+      tc2_lon[nt] = tc1_lon_tmp
+
+timestep=32
+ds["vorticity"].isel(time=timestep).sel(level=pressure_level).plot.contourf(x="longitude")
+plt.plot(tc1_lon, tc1_lat, label='TC1')
+plt.plot(tc2_lon, tc2_lat, label='TC2')
+plt.legend()
+plt.show()
+#%%
+import matplotlib.animation
+from matplotlib.animation import FuncAnimation
+
+plt.rcParams["animation.html"] = "jshtml"
+# plt.rcParams['figure.dpi'] = 150  
+plt.ioff()
+fig, ax = plt.subplots(figsize=(8, 4))
+
+def animate(t):
+  shift = 0
+  plt.cla()
+  ds["vorticity"].isel(time=t+shift).sel(level=925).plot.contourf(x='longitude', levels=np.linspace(-0.001, 0.001, 11), add_colorbar=False)
+  # plot track
+  plt.plot(tc1_lon[:t+shift+1], tc1_lat[:t+shift+1], label='TC1')
+  plt.plot(tc2_lon[:t+shift+1], tc2_lat[:t+shift+1], label='TC2')
+  plt.legend()
+
+matplotlib.animation.FuncAnimation(fig, animate, frames=32)
+
+#%%
+# plot meridional cross section
+
+ntime = 15
+print(tc1_lon[ntime])
+ds["vorticity"].isel(time=ntime).sel(longitude=tc1_lon[ntime]).plot.contourf(x='latitude', add_colorbar=True)
+plt.gca().invert_yaxis()
+plt.show()
+
+ds["vorticity"].isel(time=ntime).sel(longitude=tc2_lon[ntime]).plot.contourf(x='latitude', add_colorbar=True)
+plt.gca().invert_yaxis()
+plt.show()
+#%%
+# plot distance (km) between TCs
+
+dis_TC12 = [earth_distance(tc1_lat[i], tc1_lon[i], tc2_lat[i], tc2_lon[i])/1000. for i in range(ds["time"].size)]
+plt.figure(figsize=(8, 4))
+plt.plot(ds["time"], dis_TC12)
+plt.show()
+#%%
+# plot angular average, max distance = 300km
+ntime = 0
+level=925
+arr = ds["speed"].isel(time=ntime).sel(level=level, latitude=slice(tc1_lat[ntime]+5, tc1_lat[ntime]-5), longitude=slice(tc1_lon[ntime]-5, tc1_lon[ntime]+5))
+inv_distance = []
+value = []
+for i in range(arr.coords['latitude'].size):
+  for j in range(arr.coords['longitude'].size):
+    dis = earth_distance(tc1_lat[ntime], tc1_lon[ntime], arr.coords['latitude'][i], arr.coords['longitude'][j])
+    if dis < 500.0e3 and dis > 0:
+      inv_distance.append(1./(dis/1000.))
+      value.append(arr[i, j].values)
+plt.figure(figsize=(8, 4))
+plt.scatter(inv_distance, value)
+plt.show()
+#%%
+levels_used = levels[7:]
+levels_used = [925]
+average_speeds = []
+distances = []
+
+time = ds["time"][0]
+
+vortex_area = ds["speed"].sel(time=time, level=levels_used, 
+                              latitude=slice(tc1_lat[i] + 5, tc1_lat[i] - 5), 
+                              longitude=slice(tc1_lon[i] - 5, tc1_lon[i] + 5))
+for lat in vortex_area["latitude"]:
+  for lon in vortex_area["longitude"]:
+    r = earth_distance(tc1_lat[i], tc1_lon[i], lat, lon)
+    if r < 500e3 and r != 0:
+      distances.append(r)
+      average_speeds.append(np.mean(ds["speed"].sel(latitude=lat, longitude=lon, level=levels_used, time=time).values))
+#%%
+log_distances = np.log(np.array(distances))
+log_speeds = np.log(np.array(average_speeds))
+plt.scatter(log_distances, log_speeds)
+plt.show()
+#%%
+log_distances_fit = []
+log_speeds_fit = []
+
+for i in range(len(log_distances)):
+  if log_distances[i] > 12:
+    log_distances_fit.append(log_distances[i])
+    log_speeds_fit.append(log_speeds[i])
+  
+log_distances_fit = np.array(log_distances_fit)
+log_speeds_fit = np.array(log_speeds_fit)
+
+def linear(x, m, c):
+  return m * x + c
+
+m_guess = -1
+c_guess = 30
+
+p0 = np.array([m_guess, c_guess])
+
+fit, cov = curve_fit(linear, log_distances_fit, log_speeds_fit, p0=p0)
+
+x_fit = np.linspace(11.5, np.amax(log_distances), 100)
+y_fit = linear(x_fit, *fit)
+
+#%%
+sns.set_style("darkgrid")
+sns.scatterplot(x=log_distances, y=log_speeds, label="ERA5 data", alpha=0.5)
+sns.lineplot(x=x_fit, y=y_fit, color="orange", label=f"Best fit line, gradient = {np.round(fit[0], 2)}")
+plt.xlabel(r"$\log$(Distance from Hurricane Center / m)")
+plt.ylabel(r"$\log$(Wind speed / m s$^{-1}$)")
+plt.show()
 #%%
