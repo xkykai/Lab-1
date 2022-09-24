@@ -238,6 +238,27 @@ plt.show()
 ds["vorticity"].isel(time=ntime).sel(longitude=tc2_lon[ntime]).plot.contourf(x='latitude', add_colorbar=True)
 plt.gca().invert_yaxis()
 plt.show()
+#%% 
+# plot meridional cross section for potential temperature
+
+ntime = 15
+
+gas_constant = 8.3145 / 28.97
+c_p = 1
+
+kappa = gas_constant / c_p
+
+p_reference = 1000
+
+ds["potential temperature"] = ds["temperature"] * (p_reference / ds["level"]) ** kappa
+
+ds["potential temperature"].isel(time=ntime).sel(longitude=tc1_lon[ntime]).plot.contourf(x='latitude', add_colorbar=True)
+plt.gca().invert_yaxis()
+plt.show()
+
+ds["potential temperature"].isel(time=ntime).sel(longitude=tc2_lon[ntime]).plot.contourf(x='latitude', add_colorbar=True)
+plt.gca().invert_yaxis()
+plt.show()
 #%%
 # plot distance (km) between TCs
 
@@ -387,10 +408,14 @@ plt.plot(ds["time"], zeta_2s, label="Vorticity of TC2")
 plt.ylabel("Vorticity of TC2")
 plt.show()
 #%%
-zeta_1_time_average = np.mean(zeta_1s) * 10e11
-zeta_2_time_average = np.mean(zeta_2s) * 10e11
+# zeta_1_time_average = np.mean(zeta_1s) * 10e11
+# zeta_2_time_average = np.mean(zeta_2s) * 10e11
 
-vortex_1_lons, vortex_1_lats, vortex_2_lons, vortex_2_lats = point_vortex_interaction(zeta_1_time_average, zeta_2_time_average, tc1_lon[0], tc1_lat[0], tc2_lon[0], tc2_lat[0], 100, dt=3600)
+zeta_1_time_average = np.exp(fit[1])
+zeta_2_time_average = zeta_1_time_average / 2
+
+# vortex_1_lons, vortex_1_lats, vortex_2_lons, vortex_2_lats = point_vortex_interaction(zeta_1_time_average, zeta_2_time_average, tc1_lon[0], tc1_lat[0], tc2_lon[0], tc2_lat[0], 10000, dt=3600)
+vortex_1_lons, vortex_1_lats, vortex_2_lons, vortex_2_lats = point_vortex_interaction(zeta_1_time_average, zeta_2_time_average, 0, 0, 0, 1, 5000, dt=60)
 
 plt.style.use('default')
 
