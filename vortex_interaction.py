@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import math
 from scipy.optimize import curve_fit
 import seaborn as sns
+import scipy as sp
 
 # global variable
 RE = 6371.0e3  # Earth's radius
@@ -284,37 +285,36 @@ plt.scatter(inv_distance, value)
 plt.show()
 #%%
 levels_used = levels[7:]
-levels_used = [925]
-average_speeds = []
-distances = []
+# levels_used = [925]
+average_speeds_TC1 = []
+distances_TC1 = []
 
-time = ds["time"][0]
-
-vortex_area = ds["speed"].sel(time=time, level=levels_used, 
-                              latitude=slice(tc1_lat[i] + 5, tc1_lat[i] - 5), 
-                              longitude=slice(tc1_lon[i] - 5, tc1_lon[i] + 5))
-for lat in vortex_area["latitude"]:
-  for lon in vortex_area["longitude"]:
-    r = earth_distance(tc1_lat[i], tc1_lon[i], lat, lon)
-    if r < 500e3 and r != 0:
-      distances.append(r)
-      average_speeds.append(np.mean(ds["speed"].sel(latitude=lat, longitude=lon, level=levels_used, time=time).values))
+for i, time in enumerate(ds["time"][:2]):
+  vortex_area = ds["speed"].sel(time=time, level=levels_used, 
+                                latitude=slice(tc1_lat[i] + 7, tc1_lat[i] - 7), 
+                                longitude=slice(tc1_lon[i] - 7, tc1_lon[i] + 7))
+  for lat in vortex_area["latitude"]:
+    for lon in vortex_area["longitude"]:
+      r = earth_distance(tc1_lat[i], tc1_lon[i], lat, lon)
+      if r < 700e3 and r != 0:
+        distances_TC1.append(r)
+        average_speeds_TC1.append(np.mean(ds["speed"].sel(latitude=lat, longitude=lon, level=levels_used, time=time).values))
 #%%
-log_distances = np.log(np.array(distances))
-log_speeds = np.log(np.array(average_speeds))
-plt.scatter(log_distances, log_speeds)
+log_distances_TC1 = np.log(np.array(distances_TC1))
+log_speeds_TC1 = np.log(np.array(average_speeds_TC1))
+plt.scatter(log_distances_TC1, log_speeds_TC1)
 plt.show()
 #%%
-log_distances_fit = []
-log_speeds_fit = []
+log_distances_TC1_fit = []
+log_speeds_TC1_fit = []
 
-for i in range(len(log_distances)):
-  if log_distances[i] > 12:
-    log_distances_fit.append(log_distances[i])
-    log_speeds_fit.append(log_speeds[i])
+for i in range(len(log_distances_TC1)):
+  if log_distances_TC1[i] > 11.5:
+    log_distances_TC1_fit.append(log_distances_TC1[i])
+    log_speeds_TC1_fit.append(log_speeds_TC1[i])
   
-log_distances_fit = np.array(log_distances_fit)
-log_speeds_fit = np.array(log_speeds_fit)
+log_distances_TC1_fit = np.array(log_distances_TC1_fit)
+log_speeds_TC1_fit = np.array(log_speeds_TC1_fit)
 
 def linear(x, m, c):
   return m * x + c
@@ -324,17 +324,78 @@ c_guess = 30
 
 p0 = np.array([m_guess, c_guess])
 
-fit, cov = curve_fit(linear, log_distances_fit, log_speeds_fit, p0=p0)
+fit_TC1, cov_TC1 = curve_fit(linear, log_distances_TC1_fit, log_speeds_TC1_fit, p0=p0)
 
-x_fit = np.linspace(11.5, np.amax(log_distances), 100)
-y_fit = linear(x_fit, *fit)
-
+x_fit_TC1 = np.linspace(11.5, np.amax(log_distances_TC1), 100)
+y_fit_TC1 = linear(x_fit_TC1, *fit_TC1)
+print(fit_TC1)
+print(np.sqrt(cov_TC1[0,0]))
 #%%
-sns.set_style("darkgrid")
-sns.scatterplot(x=log_distances, y=log_speeds, label="ERA5 data", alpha=0.5)
-sns.lineplot(x=x_fit, y=y_fit, color="orange", label=f"Best fit line, gradient = {np.round(fit[0], 2)}")
+# sns.set_style("darkgrid")
+# sns.scatterplot(x=log_distances, y=log_speeds, label="ERA5 data", alpha=0.5)
+# sns.lineplot(x=x_fit, y=y_fit, color="orange", label=f"Best fit line, gradient = {np.round(fit[0], 2)}")
+plt.plot(log_distances_TC1, log_speeds_TC1, ".", label="ERA5 data", alpha=0.5)
+plt.plot(x_fit_TC1, y_fit_TC1, label=rf"Best fit line, gradient = {np.round(fit_TC1[0], 2)} $\pm$ {np.round(np.sqrt(cov_TC1[0,0]), 2)}")
+plt.legend()
 plt.xlabel(r"$\log$(Distance from Hurricane Center / m)")
 plt.ylabel(r"$\log$(Wind speed / m s$^{-1}$)")
+plt.title("Tropical Cyclone 1")
+plt.show()
+#%%
+levels_used = levels[7:]
+# levels_used = [925]
+average_speeds_TC2 = []
+distances_TC2 = []
+
+for i, time in enumerate(ds["time"][:2]):
+  vortex_area = ds["speed"].sel(time=time, level=levels_used, 
+                                latitude=slice(tc2_lat[i] + 7, tc2_lat[i] - 7), 
+                                longitude=slice(tc2_lon[i] - 7, tc2_lon[i] + 7))
+  for lat in vortex_area["latitude"]:
+    for lon in vortex_area["longitude"]:
+      r = earth_distance(tc2_lat[i], tc2_lon[i], lat, lon)
+      if r < 700e3 and r != 0:
+        distances_TC2.append(r)
+        average_speeds_TC2.append(np.mean(ds["speed"].sel(latitude=lat, longitude=lon, level=levels_used, time=time).values))
+#%%
+log_distances_TC2 = np.log(np.array(distances_TC2))
+log_speeds_TC2 = np.log(np.array(average_speeds_TC2))
+plt.scatter(log_distances_TC2, log_speeds_TC2)
+plt.show()
+#%%
+log_distances_TC2_fit = []
+log_speeds_TC2_fit = []
+
+for i in range(len(log_distances_TC2)):
+  if log_distances_TC2[i] > 12:
+    log_distances_TC2_fit.append(log_distances_TC2[i])
+    log_speeds_TC2_fit.append(log_speeds_TC2[i])
+  
+log_distances_TC2_fit = np.array(log_distances_TC2_fit)
+log_speeds_TC2_fit = np.array(log_speeds_TC2_fit)
+
+m_guess = -1
+c_guess = 30
+
+p0 = np.array([m_guess, c_guess])
+
+fit_TC2, cov_TC2 = curve_fit(linear, log_distances_TC2_fit, log_speeds_TC2_fit, p0=p0)
+
+x_fit_TC2 = np.linspace(12, np.amax(log_distances_TC2), 100)
+y_fit_TC2 = linear(x_fit_TC2, *fit_TC2)
+print(fit_TC2)
+print(np.sqrt(cov_TC2[0,0]))
+#%%
+# sns.set_style("darkgrid")
+# sns.scatterplot(x=log_distances, y=log_speeds, label="ERA5 data", alpha=0.5)
+# sns.lineplot(x=x_fit, y=y_fit, color="orange", label=f"Best fit line, gradient = {np.round(fit[0], 2)}")
+plt.plot(log_distances_TC2, log_speeds_TC2, ".", label="ERA5 data", alpha=0.5)
+# plt.plot(x_fit_TC2, y_fit_TC2, label=f"Best fit line, gradient = {np.round(fit_TC2[0], 2)}")
+plt.plot(x_fit_TC2, y_fit_TC2, label=rf"Best fit line, gradient = {np.round(fit_TC2[0], 2)} $\pm$ {np.round(np.sqrt(cov_TC2[0,0]), 2)}")
+plt.legend()
+plt.xlabel(r"$\log$(Distance from Hurricane Center / m)")
+plt.ylabel(r"$\log$(Wind speed / m s$^{-1}$)")
+plt.title("Tropical Cyclone 2")
 plt.show()
 #%%
 def distance_to_latlon(initial_lon, initial_lat, displacement):
@@ -368,7 +429,7 @@ def point_vortex_interaction(zeta_1, zeta_2, lon_1, lat_1, lon_2, lat_2, nsteps,
     dlon_rad = lon_2_rad - lon_1_rad
     dlat_rad = lat_2_rad - lat_1_rad
 
-    dx_1_to_2 = RE * np.cos(lon_1_rad) * dlon_rad
+    dx_1_to_2 = RE * np.cos(lat_1_rad) * dlon_rad
     dy_1_to_2 = RE * dlat_rad
 
     r_1_to_2 = np.array([dx_1_to_2, dy_1_to_2])
@@ -376,8 +437,8 @@ def point_vortex_interaction(zeta_1, zeta_2, lon_1, lat_1, lon_2, lat_2, nsteps,
 
     distance = np.linalg.norm(r_1_to_2)
 
-    u_1_on_2 = perpendicular(r_1_to_2) * zeta_1  / ( 2 * np.pi * distance)
-    u_2_on_1 = perpendicular(r_2_to_1) * zeta_2  / ( 2 * np.pi * distance)
+    u_1_on_2 = perpendicular(r_1_to_2) * zeta_1  / (2 * np.pi * distance)
+    u_2_on_1 = perpendicular(r_2_to_1) * zeta_2  / (2 * np.pi * distance)
 
     lon_2, lat_2 = distance_to_latlon(lon_2, lat_2, u_1_on_2 * dt)
     lon_1, lat_1 = distance_to_latlon(lon_1, lat_1, u_2_on_1 * dt)
@@ -408,18 +469,279 @@ plt.plot(ds["time"], zeta_2s, label="Vorticity of TC2")
 plt.ylabel("Vorticity of TC2")
 plt.show()
 #%%
+plt.ioff()
+test_vortex_1_lons, test_vortex_1_lats, test_vortex_2_lons, test_vortex_2_lats = point_vortex_interaction(1e5/2, 1e5, 45, 45, 45, 43, 20000, dt=60)
+
+plt.plot(test_vortex_1_lons, test_vortex_1_lats, label='TC1')
+plt.plot(test_vortex_2_lons, test_vortex_2_lats, label='TC2')
+plt.legend()
+plt.axis("equal")
+plt.show()
+#%%
 # zeta_1_time_average = np.mean(zeta_1s) * 10e11
 # zeta_2_time_average = np.mean(zeta_2s) * 10e11
 
-zeta_1_time_average = np.exp(fit[1])
-zeta_2_time_average = zeta_1_time_average / 2
+levels_used = levels[7:]
+area_TC1 = np.pi * np.exp(11.5) ** 2
+area_TC2 = np.pi * np.exp(12) ** 2
 
-# vortex_1_lons, vortex_1_lats, vortex_2_lons, vortex_2_lats = point_vortex_interaction(zeta_1_time_average, zeta_2_time_average, tc1_lon[0], tc1_lat[0], tc2_lon[0], tc2_lat[0], 10000, dt=3600)
-vortex_1_lons, vortex_1_lats, vortex_2_lons, vortex_2_lats = point_vortex_interaction(zeta_1_time_average, zeta_2_time_average, 0, 0, 0, 1, 5000, dt=60)
+vorticity_TC1 = np.mean(ds["vorticity"].sel(level=levels_used, latitude=tc1_lat[0], longitude=tc1_lon[0]).isel(time=0).values)
+vorticity_TC2 = np.mean(ds["vorticity"].sel(level=levels_used, latitude=tc2_lat[0], longitude=tc2_lon[0]).isel(time=0).values)
 
-plt.style.use('default')
+vorticity_area_TC1 = vorticity_TC1 * area_TC1
+vorticity_area_TC2 = vorticity_TC2 * area_TC2
 
-plt.scatter(vortex_1_lons, vortex_1_lats)
-plt.scatter(vortex_2_lons, vortex_2_lats)
+
+vortex_1_lons, vortex_1_lats, vortex_2_lons, vortex_2_lats = point_vortex_interaction(vorticity_area_TC1, vorticity_area_TC2, tc1_lon[0], tc1_lat[0], tc2_lon[0], tc2_lat[0], 2000, dt=360)
+
+plt.plot(vortex_1_lons, vortex_1_lats)
+plt.plot(vortex_2_lons, vortex_2_lats)
+ds["vorticity"].isel(time=0).sel(level=925).plot.contourf(x='longitude', levels=np.linspace(-0.001, 0.001, 11), add_colorbar=False)
+plt.plot(tc1_lon, tc1_lat, label='TC1')
+plt.plot(tc2_lon, tc2_lat, label='TC2')
+plt.show()
+#%%
+plt.rcParams["animation.html"] = "jshtml"
+# plt.rcParams['figure.dpi'] = 150  
+plt.ioff()
+fig, ax = plt.subplots(figsize=(8, 4))
+
+def animate_track_comparison(t):
+  shift = 0
+  plt.cla()
+  ds["vorticity"].isel(time=t+shift).sel(level=925).plot.contourf(x='longitude', levels=np.linspace(-0.001, 0.001, 11), add_colorbar=False)
+  # plot track
+  plt.plot(tc1_lon[:t+shift+1], tc1_lat[:t+shift+1], label='TC1')
+  plt.plot(tc2_lon[:t+shift+1], tc2_lat[:t+shift+1], label='TC2')
+  plt.plot(vortex_1_lons, vortex_1_lats, label="PV Calculation")
+  plt.plot(vortex_2_lons, vortex_2_lats)
+  # plt.plot(vortex_1_lons, vortex_1_lats, label="PV Calculation")
+  # plt.plot(vortex_2_lons, vortex_2_lats)
+  plt.legend()
+
+matplotlib.animation.FuncAnimation(fig, animate_track_comparison, frames=32)
+#%%
+plt.ioff()
+plt.plot(vortex_1_lons, vortex_1_lats, "--", label="Theoretical calculation of TC1")
+plt.plot(tc1_lon, tc1_lat, label='True trajectory of TC1')
+plt.plot(vortex_2_lons, vortex_2_lats, "--", label="Theoretical calculation of TC2")
+plt.plot(tc2_lon, tc2_lat, label='True trajectory of TC2')
+plt.legend()
+plt.xlabel(r"Longitude ($\degree$)")
+plt.ylabel(r"Latitude ($\degree$)")
+plt.show()
+#%%
+t_total = np.timedelta64(ds["time"][-1].values - ds["time"][0].values, "s").item().total_seconds()
+
+t_background = np.linspace(0, t_total, ds["time"].size)
+u_background = ds["u"].sel(level=levels_used).mean(dim=["level", "latitude", "longitude"])
+v_background = ds["v"].sel(level=levels_used).mean(dim=["level", "latitude", "longitude"])
+
+
+u_background_interpolate = sp.interpolate.interp1d(t_background, u_background.values, kind="cubic")
+v_background_interpolate = sp.interpolate.interp1d(t_background, v_background.values, kind="cubic")
+
+t_background_interpolate = np.linspace(0, t_total, 200)
+
+plt.plot(t_background, u_background, label="Data")
+plt.plot(t_background_interpolate, u_background_interpolate(t_background_interpolate), label="Interpolation")
+plt.ylabel("u (m / s)")
+plt.xlabel("time / s")
+plt.legend()
+plt.show()
+
+plt.plot(t_background, v_background, label="Data")
+plt.plot(t_background_interpolate, v_background_interpolate(t_background_interpolate), label="Interpolation")
+plt.ylabel("v (m / s)")
+plt.xlabel("time / s")
+plt.legend()
+plt.show()
+#%%
+def point_vortex_interaction_background_velocity(zeta_1, zeta_2, lon_1, lat_1, lon_2, lat_2, ds, dt=600):
+  t_total = np.timedelta64(ds["time"][-1].values - ds["time"][0].values, "s").item().total_seconds()
+
+  t_background = np.linspace(0, t_total, ds["time"].size)
+  u_background = ds["u"].sel(level=levels_used).mean(dim=["level", "latitude", "longitude"])
+  v_background = ds["v"].sel(level=levels_used).mean(dim=["level", "latitude", "longitude"])
+
+  u_background_interpolate = sp.interpolate.interp1d(t_background, u_background.values, kind="cubic")
+  v_background_interpolate = sp.interpolate.interp1d(t_background, v_background.values, kind="cubic")
+
+  t_background_interpolate = np.arange(0, t_total + 1e-5, dt)
+  nsteps = len(t_background_interpolate)
+
+  lon_1s = np.zeros(nsteps + 1)
+  lat_1s = np.zeros(nsteps + 1)
+  lon_2s = np.zeros(nsteps + 1)
+  lat_2s = np.zeros(nsteps + 1)
+
+  lon_1s[0] = lon_1
+  lat_1s[0] = lat_1
+  lon_2s[0] = lon_2
+  lat_2s[0] = lat_2
+
+  for i in range(nsteps):
+    lat_1_rad = np.radians(lat_1)
+    lon_1_rad = np.radians(lon_1)
+    lat_2_rad = np.radians(lat_2)
+    lon_2_rad = np.radians(lon_2)
+
+    dlon_rad = lon_2_rad - lon_1_rad
+    dlat_rad = lat_2_rad - lat_1_rad
+
+    dx_1_to_2 = RE * np.cos(lat_1_rad) * dlon_rad
+    dy_1_to_2 = RE * dlat_rad
+
+    r_1_to_2 = np.array([dx_1_to_2, dy_1_to_2])
+    r_2_to_1 = - 1 * r_1_to_2
+
+    distance = np.linalg.norm(r_1_to_2)
+
+    velocity_background = np.array([
+      u_background_interpolate(t_background_interpolate[i]),
+      v_background_interpolate(t_background_interpolate[i]),
+    ])
+    
+    u_1_on_2 = perpendicular(r_1_to_2) * zeta_1  / (2 * np.pi * distance) + velocity_background
+    u_2_on_1 = perpendicular(r_2_to_1) * zeta_2  / (2 * np.pi * distance) + velocity_background
+
+    lon_2, lat_2 = distance_to_latlon(lon_2, lat_2, u_1_on_2 * dt)
+    lon_1, lat_1 = distance_to_latlon(lon_1, lat_1, u_2_on_1 * dt)
+
+    lon_1s[i+1] = lon_1
+    lat_1s[i+1] = lat_1
+    lon_2s[i+1] = lon_2
+    lat_2s[i+1] = lat_2
+
+  return lon_1s, lat_1s, lon_2s, lat_2s
+
+vortex_1_lons, vortex_1_lats, vortex_2_lons, vortex_2_lats = point_vortex_interaction_background_velocity(vorticity_area_TC1, vorticity_area_TC2, tc1_lon[0], tc1_lat[0], tc2_lon[0], tc2_lat[0], ds, dt=60)
+
+#%%
+plt.clf()
+plt.plot(vortex_1_lons, vortex_1_lats, "--", label="Theoretical calculation of TC1")
+plt.plot(tc1_lon, tc1_lat, label='True trajectory of TC1')
+plt.plot(vortex_2_lons, vortex_2_lats, "--", label="Theoretical calculation of TC2")
+plt.plot(tc2_lon, tc2_lat, label='True trajectory of TC2')
+plt.legend()
+plt.xlabel(r"Longitude ($\degree$)")
+plt.ylabel(r"Latitude ($\degree$)")
+plt.show()
+#%%
+t_total = np.timedelta64(ds["time"][-1].values - ds["time"][0].values, "s").item().total_seconds()
+
+t_background = np.linspace(0, t_total, ds["time"].size)
+
+vorticity_tc1s = np.zeros(len(t_background))
+vorticity_tc2s = np.zeros(len(t_background))
+
+for i in range(len(tc1_lat)):
+  vorticity_tc1s[i] = ds["vorticity"].sel(level=levels_used, latitude=tc1_lat[i], longitude=tc1_lon[i]).isel(time=i).mean()
+  vorticity_tc2s[i] = ds["vorticity"].sel(level=levels_used, latitude=tc2_lat[i], longitude=tc2_lon[i]).isel(time=i).mean()
+
+vorticity_tc1_interpolate = sp.interpolate.interp1d(t_background, vorticity_tc1s, kind="cubic")
+vorticity_tc2_interpolate = sp.interpolate.interp1d(t_background, vorticity_tc2s, kind="cubic")
+
+t_background_interpolate = np.linspace(0, t_total, 200)
+
+plt.plot(t_background, vorticity_tc1s, label="Data")
+plt.plot(t_background_interpolate, vorticity_tc1_interpolate(t_background_interpolate), label="Interpolation")
+plt.ylabel("Vorticity of TC1")
+plt.xlabel("time / s")
+plt.legend()
+plt.show()
+
+plt.plot(t_background, vorticity_tc2s, label="Data")
+plt.plot(t_background_interpolate, vorticity_tc2_interpolate(t_background_interpolate), label="Interpolation")
+plt.ylabel("Vorticity of TC2")
+plt.xlabel("time / s")
+plt.legend()
+plt.show()
+#%%
+def point_vortex_interaction_background_velocity_vorticity(lon_1, lat_1, lon_2, lat_2, ds, dt=600):
+  t_total = np.timedelta64(ds["time"][-1].values - ds["time"][0].values, "s").item().total_seconds()
+
+  t_background = np.linspace(0, t_total, ds["time"].size)
+  u_background = ds["u"].sel(level=levels_used).mean(dim=["level", "latitude", "longitude"])
+  v_background = ds["v"].sel(level=levels_used).mean(dim=["level", "latitude", "longitude"])
+
+  u_background_interpolate = sp.interpolate.interp1d(t_background, u_background.values, kind="cubic")
+  v_background_interpolate = sp.interpolate.interp1d(t_background, v_background.values, kind="cubic")
+
+  vorticity_tc1s = np.zeros(len(t_background))
+  vorticity_tc2s = np.zeros(len(t_background))
+
+  for i in range(len(tc1_lat)):
+    vorticity_tc1s[i] = ds["vorticity"].sel(level=levels_used, latitude=tc1_lat[i], longitude=tc1_lon[i]).isel(time=i).mean()
+    vorticity_tc2s[i] = ds["vorticity"].sel(level=levels_used, latitude=tc2_lat[i], longitude=tc2_lon[i]).isel(time=i).mean()
+
+  vorticity_tc1_interpolate = sp.interpolate.interp1d(t_background, vorticity_tc1s, kind="cubic")
+  vorticity_tc2_interpolate = sp.interpolate.interp1d(t_background, vorticity_tc2s, kind="cubic")
+
+  t_background_interpolate = np.arange(0, t_total + 1e-5, dt)
+  nsteps = len(t_background_interpolate)
+
+  lon_1s = np.zeros(nsteps + 1)
+  lat_1s = np.zeros(nsteps + 1)
+  lon_2s = np.zeros(nsteps + 1)
+  lat_2s = np.zeros(nsteps + 1)
+
+  lon_1s[0] = lon_1
+  lat_1s[0] = lat_1
+  lon_2s[0] = lon_2
+  lat_2s[0] = lat_2
+
+  area_TC1 = np.pi * np.exp(11.5) ** 2
+  area_TC2 = np.pi * np.exp(12) ** 2
+
+  for i in range(nsteps):
+    lat_1_rad = np.radians(lat_1)
+    lon_1_rad = np.radians(lon_1)
+    lat_2_rad = np.radians(lat_2)
+    lon_2_rad = np.radians(lon_2)
+
+    dlon_rad = lon_2_rad - lon_1_rad
+    dlat_rad = lat_2_rad - lat_1_rad
+
+    dx_1_to_2 = RE * np.cos(lat_1_rad) * dlon_rad
+    dy_1_to_2 = RE * dlat_rad
+
+    r_1_to_2 = np.array([dx_1_to_2, dy_1_to_2])
+    r_2_to_1 = - 1 * r_1_to_2
+
+    distance = np.linalg.norm(r_1_to_2)
+
+    velocity_background = np.array([
+      u_background_interpolate(t_background_interpolate[i]),
+      v_background_interpolate(t_background_interpolate[i]),
+    ])
+
+    vorticity_area_TC1 = vorticity_tc1_interpolate(t_background_interpolate[i]) * area_TC1
+    vorticity_area_TC2 = vorticity_tc2_interpolate(t_background_interpolate[i]) * area_TC2
+    
+    u_1_on_2 = perpendicular(r_1_to_2) * vorticity_area_TC1  / (2 * np.pi * distance) + velocity_background
+    u_2_on_1 = perpendicular(r_2_to_1) * vorticity_area_TC2  / (2 * np.pi * distance) + velocity_background
+
+    lon_2, lat_2 = distance_to_latlon(lon_2, lat_2, u_1_on_2 * dt)
+    lon_1, lat_1 = distance_to_latlon(lon_1, lat_1, u_2_on_1 * dt)
+
+    lon_1s[i+1] = lon_1
+    lat_1s[i+1] = lat_1
+    lon_2s[i+1] = lon_2
+    lat_2s[i+1] = lat_2
+
+  return lon_1s, lat_1s, lon_2s, lat_2s
+#%%
+vortex_1_lons, vortex_1_lats, vortex_2_lons, vortex_2_lats = point_vortex_interaction_background_velocity_vorticity(tc1_lon[0], tc1_lat[0], tc2_lon[0], tc2_lat[0], ds, dt=60)
+
+#%%
+plt.clf()
+plt.plot(vortex_1_lons, vortex_1_lats, "--", label="Theoretical calculation of TC1")
+plt.plot(tc1_lon, tc1_lat, label='True trajectory of TC1')
+plt.plot(vortex_2_lons, vortex_2_lats, "--", label="Theoretical calculation of TC2")
+plt.plot(tc2_lon, tc2_lat, label='True trajectory of TC2')
+plt.legend()
+plt.xlabel(r"Longitude ($\degree$)")
+plt.ylabel(r"Latitude ($\degree$)")
 plt.show()
 #%%
